@@ -25,7 +25,6 @@ AI Crypto Assistant is a Flask-based web application that provides real-time cry
 
    ```bash
    git clone https://github.com/balzhankomekbaeva/ass4_blockchain.git
-   cd ai-crypto-assistant
    ```
 
 2. Install required packages:
