@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Crypto Assistant</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .chat-container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .chat-history {
+            height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 18px;
+            max-width: 80%;
+        }
+        .user-message {
+            background-color: #007bff;
+            color: white;
+            margin-left: auto;
+        }
+        .assistant-message {
+            background-color: #e9ecef;
+            color: #212529;
+        }
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+        .input-container input {
+            flex-grow: 1;
+        }
+        .popular-queries {
+            margin-top: 30px;
+        }
+        .query-card {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .query-card:hover {
+            transform: translateY(-5px);
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .status-online {
+            background-color: #28a745;
+        }
+        .status-offline {
+            background-color: #dc3545;
+        }
+        .model-select {
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AI Crypto Assistant</h1>
+            <p class="lead">Get real-time information about cryptocurrency prices, market data, and news</p>
+        </div>
+
+        <div class="chat-container">
+            <div id="status-bar" class="mb-3">
+                <!-- <div>
+                    <span>Ollama Status: </span>
+                    <span id="ollama-status">
+                        <span class="status-indicator status-offline"></span>Checking...
+                    </span>
+                </div> -->
+                <div id="model-selection" class="model-select d-none">
+                    <label for="model-select">Model:</label>
+                    <select id="model-select" class="form-select"></select>
+                </div>
+            </div>
+
+            <div class="chat-history" id="chat-history">
+                <div class="message assistant-message">
+                    Hello! I'm your AI Crypto Assistant. I can provide information about the top 50 cryptocurrencies by market cap. Ask me questions like "What's the current price of Bitcoin?", "Tell me the latest news about Ethereum", or "What's the market cap of Solana?"
+                </div>
+            </div>
+
+            <div class="input-container">
+                <input type="text" id="user-input" class="form-control" placeholder="Ask about cryptocurrencies...">
+                <button id="send-button" class="btn btn-primary">Send</button>
+            </div>
+        </div>
+
+        <div class="popular-queries">
+            <h3 class="mb-4">Popular Queries:</h3>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <div class="card query-card" data-query="Bitcoin Price">
+                        <div class="card-body">
+                            <h5 class="card-title">Bitcoin Price</h5>
+                            <p class="card-text">Get the latest BTC price</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card query-card" data-query="Ethereum News">
+                        <div class="card-body">
+                            <h5 class="card-title">Ethereum News</h5>
+                            <p class="card-text">Latest ETH updates</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card query-card" data-query="Solana Market Data">
+                        <div class="card-body">
+                            <h5 class="card-title">Solana Market Data</h5>
+                            <p class="card-text">SOL market statistics</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4 text-center">
+            <p class="text-muted">Data powered by CoinMarketCap, CryptoPanic, and Ollama</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatHistory = document.getElementById('chat-history');
+            const userInput = document.getElementById('user-input');
+            const sendButton = document.getElementById('send-button');
+            const queryCards = document.querySelectorAll('.query-card');
+            const ollamaStatus = document.getElementById('ollama-status');
+            const modelSelect = document.getElementById('model-select');
+            const modelSelection = document.getElementById('model-selection');
+
+            // Check system status
+            checkStatus();
+
+            // Add event listeners
+            sendButton.addEventListener('click', sendMessage);
+            userInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+
+            queryCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    const query = card.getAttribute('data-query');
+                    if (query) {
+                        userInput.value = query;
+                        sendMessage();
+                    }
+                });
+            });
+
+            // Check status of services
+            function checkStatus() {
+                fetch('/api/status')
+                    .then(response => response.json())
+                    .then(data => {
+                        // Update Ollama status
+                        const statusClass = data.ollama ? 'status-online' : 'status-offline';
+                        const statusText = data.ollama ? 'Online' : 'Offline';
+                        
+                        ollamaStatus.innerHTML = `
+                            <span class="status-indicator ${statusClass}"></span>${statusText}
+                        `;
+
+                        // If Ollama is online, populate model selection
+                        if (data.ollama && data.models && data.models.length > 0) {
+                            modelSelection.classList.remove('d-none');
+                            
+                            // Clear existing options
+                            modelSelect.innerHTML = '';
+                            
+                            // Add available models
+                            data.models.forEach(model => {
+                                const option = document.createElement('option');
+                                option.value = model;
+                                option.textContent = model;
+                                
+                                // Set current model as selected
+                                if (model === data.current_model) {
+                                    option.selected = true;
+                                }
+                                
+                                modelSelect.appendChild(option);
+                            });
+                            
+                            // Add event listener to model select
+                            modelSelect.addEventListener('change', () => {
+                                const selectedModel = modelSelect.value;
+                                changeModel(selectedModel);
+                            });
+                        } else {
+                            modelSelection.classList.add('d-none');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error checking status:', error);
+                        ollamaStatus.innerHTML = `
+                            <span class="status-indicator status-offline"></span>Error
+                        `;
+                    });
+            }
+
+            // Change the model
+            function changeModel(model) {
+                fetch('/api/set_model', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ model })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        addMessage('System', `Changed model to ${model}`, 'assistant-message');
+                    } else {
+                        addMessage('System', `Failed to change model: ${data.error}`, 'assistant-message');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error changing model:', error);
+                    addMessage('System', 'Failed to change model due to an error', 'assistant-message');
+                });
+            }
+
+            function sendMessage() {
+                const message = userInput.value.trim();
+                if (!message) return;
+
+                // Add user message to chat
+                addMessage('You', message, 'user-message');
+                userInput.value = '';
+
+                // Show thinking indicator
+                const thinkingMsg = addMessage('AI', 'Thinking...', 'assistant-message');
+
+                // Send request to server
+                fetch('/api/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ query: message })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Server responded with ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // Remove thinking message
+                    chatHistory.removeChild(thinkingMsg);
+                    
+                    // Add assistant response
+                    addMessage('AI', data.response, 'assistant-message');
+                })
+                .catch(error => {
+                    // Remove thinking message
+                    chatHistory.removeChild(thinkingMsg);
+                    
+                    console.error('Error:', error);
+                    const errorMessage = error.message.includes('Failed to fetch') ? 
+                        'Server is not responding. Please check if the server is running.' :
+                        `Error: ${error.message}`;
+                    
+                    addMessage('System', errorMessage, 'assistant-message');
+                });
+            }
+
+            function addMessage(sender, text, className) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${className}`;
+                
+                const senderSpan = document.createElement('strong');
+                senderSpan.textContent = sender + ': ';
+                
+                const textSpan = document.createElement('span');
+                textSpan.textContent = text;
+                
+                messageDiv.appendChild(senderSpan);
+                messageDiv.appendChild(textSpan);
+                
+                chatHistory.appendChild(messageDiv);
+                
+                // Auto scroll to bottom
+                chatHistory.scrollTop = chatHistory.scrollHeight;
+                
+                return messageDiv;
+            }
+        });
+    </script>
+</body>
+</html>
