@@ -76,6 +76,9 @@ Visit `http://localhost:5000` in your browser to use the AI Crypto Assistant.
 * Check your API keys if you encounter data fetching errors.
 * Verify the server is running by accessing `http://localhost:5000`.
 
-## License
+## Screenshots
 
-MIT License
+![image](https://github.com/user-attachments/assets/4b004f4a-6cf4-4e37-ad25-d14b549cd1d2)
+![image](https://github.com/user-attachments/assets/063f109d-672a-42ba-afee-82dcc0150e6b)
+
+
